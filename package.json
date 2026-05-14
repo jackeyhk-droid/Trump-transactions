@@ -1,0 +1,9 @@
+{
+  "name": "ptr-over1m-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PTR Over-$1M Transactions dashboard — live price performance from OGE Form 278-T. Auto-refreshes via Vercel serverless function.",
+  "engines": {
+    "node": ">=18.x"
+  }
+}

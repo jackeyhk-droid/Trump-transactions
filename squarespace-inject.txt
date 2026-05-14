@@ -1,0 +1,47 @@
+<!--
+  PTR Over-$1M Dashboard - Squarespace Full-Page Takeover
+  ========================================================
+  Paste this entire block into the PAGE-level Code Injection:
+    Page Settings (gear icon) -> Advanced -> Page Header Code Injection
+  NOT the site-wide Settings -> Advanced -> Code Injection.
+
+  Then replace YOUR-APP.vercel.app on the iframe.src line below with your
+  actual Vercel URL (keep the https:// and the trailing slash).
+-->
+<style>
+  /* Hide all Squarespace chrome on this page only */
+  #header, #footer, .header, .footer,
+  .Header, .Footer, .Mobile-bar,
+  nav, .sqs-announcement-bar-dropzone {
+    display: none !important;
+  }
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    height: 100% !important;
+    background: #0c0d10 !important;
+  }
+  #ptr-dashboard-frame {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    border: 0;
+    z-index: 999999;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var iframe = document.createElement('iframe');
+
+    /* ===== REPLACE THIS URL with your Vercel URL from Step 7 ===== */
+    iframe.src = "https://YOUR-APP.vercel.app/";
+    /* ============================================================ */
+
+    iframe.id = "ptr-dashboard-frame";
+    iframe.setAttribute('allow', 'fullscreen');
+    iframe.setAttribute('loading', 'eager');
+    document.body.appendChild(iframe);
+  });
+</script>

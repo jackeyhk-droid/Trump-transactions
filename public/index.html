@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PTR $1M+ Transactions — Live Performance · D.J. Trump 278-T</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0d10; --panel:#141519; --panel-2:#1a1c22; --line:#262932;
+    --ink:#e8e6e0; --ink-dim:#8b8d96; --ink-faint:#5a5c66;
+    --up:#3fb27f; --down:#e0625e; --flat:#7d7f88;
+    --buy:#d8a24a; --sell:#6f9bd1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;-webkit-font-smoothing:antialiased}
+  body{padding:32px 28px 60px;max-width:1340px;margin:0 auto}
+
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:22px}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--buy);margin-bottom:10px}
+  h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:44px;
+    line-height:1.05;letter-spacing:.01em}
+  h1 em{font-style:italic;color:var(--ink-dim)}
+  .sub{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+    color:var(--ink-dim);display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+  .sub b{color:var(--ink);font-weight:500}
+  .live{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-faint)}
+  .dot.ok{background:var(--up);animation:pulse 2.4s infinite}
+  .dot.err{background:var(--down)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,178,127,.5)}
+    70%{box-shadow:0 0 0 7px rgba(63,178,127,0)}100%{box-shadow:0 0 0 0 rgba(63,178,127,0)}}
+  .refresh{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;padding:6px 12px;border-radius:6px;
+    cursor:pointer;letter-spacing:.05em;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+  .refresh:hover{color:var(--buy);border-color:var(--ink-faint)}
+  .refresh:disabled{opacity:.5;cursor:wait}
+  .spin{display:inline-block;animation:rot .8s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  .tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--line)}
+  .tab{background:none;border:0;border-bottom:2px solid transparent;color:var(--ink-faint);
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:.04em;
+    padding:11px 18px;cursor:pointer;transition:.15s;margin-bottom:-1px;display:flex;
+    align-items:center;gap:8px}
+  .tab:hover{color:var(--ink-dim)}
+  .tab.on{color:var(--ink);border-bottom-color:var(--buy)}
+  .tab.on[data-tab="sales"]{border-bottom-color:var(--sell)}
+  .tab .pill{font-size:10px;padding:2px 7px;border-radius:9px;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--ink-faint)}
+  .tab.on .pill{color:var(--ink-dim)}
+
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:7px;
+    padding:15px 16px;position:relative;overflow:hidden}
+  .card .lab{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-faint);margin-bottom:9px}
+  .card .val{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;
+    letter-spacing:-.01em}
+  .card .note{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-dim);margin-top:5px}
+  .card.accent::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--buy)}
+  .card.accent.sell::before{background:var(--sell)}
+
+  .controls{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .seg button{background:var(--panel);color:var(--ink-dim);border:0;
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;padding:8px 13px;
+    cursor:pointer;letter-spacing:.03em;transition:.15s}
+  .seg button+button{border-left:1px solid var(--line)}
+  .seg button:hover{color:var(--ink)}
+  .seg button.on{background:var(--panel-2);color:var(--buy)}
+  .search{flex:1;min-width:160px;background:var(--panel);border:1px solid var(--line);
+    border-radius:6px;padding:8px 12px;color:var(--ink);
+    font-family:'IBM Plex Mono',monospace;font-size:12px}
+  .search::placeholder{color:var(--ink-faint)}
+  .search:focus{outline:none;border-color:var(--ink-faint)}
+  .btn-export{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;padding:8px 13px;border-radius:6px;
+    cursor:pointer;letter-spacing:.04em;transition:.15s}
+  .btn-export:hover{color:var(--buy);border-color:var(--ink-faint)}
+  .count{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);white-space:nowrap}
+
+  .wrap{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+  table{width:100%;border-collapse:collapse}
+  thead th{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--ink-faint);text-align:right;padding:12px 13px;
+    background:var(--panel-2);border-bottom:1px solid var(--line);cursor:pointer;
+    user-select:none;white-space:nowrap;transition:color .15s}
+  thead th:hover{color:var(--ink-dim)}
+  thead th.lft{text-align:left}
+  thead th .ar{color:var(--buy);font-size:9px;margin-left:3px}
+  tbody td{padding:11px 13px;text-align:right;border-bottom:1px solid var(--line);
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr{transition:background .12s}
+  tbody tr:hover{background:var(--panel-2)}
+  td.lft{text-align:left}
+  .idx{color:var(--ink-faint);font-size:11px}
+  .nm{font-family:'IBM Plex Sans',sans-serif;color:var(--ink);font-size:12.5px;
+    max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tk{display:inline-block;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;letter-spacing:.03em;color:var(--ink)}
+  .dt{color:var(--ink-dim);font-size:11.5px}
+  .px{color:var(--ink-dim)}
+  .px.cur{color:var(--ink)}
+  .size{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.02em;
+    padding:3px 7px;border-radius:4px;white-space:nowrap;border:1px solid}
+  .size.s1{background:rgba(216,162,74,.09);color:var(--buy);border-color:rgba(216,162,74,.22)}
+  .size.s5{background:rgba(224,98,94,.1);color:var(--down);border-color:rgba(224,98,94,.28)}
+  .pcell{position:relative}
+  .pbar{position:absolute;top:0;bottom:0;opacity:.15}
+  .pbar.pos{background:var(--up);left:50%}
+  .pbar.neg{background:var(--down);right:50%}
+  .pval{position:relative;font-weight:600;display:inline-flex;align-items:center;
+    gap:5px;justify-content:flex-end;min-width:80px}
+  .up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--flat)}
+  .tag{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;
+    padding:2px 5px;border-radius:3px;text-transform:uppercase}
+  .tag.mmf{background:var(--panel-2);color:var(--ink-faint);border:1px solid var(--line)}
+  .tag.na{background:rgba(224,98,94,.1);color:var(--down);border:1px solid rgba(224,98,94,.25)}
+
+  .ctxbar{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-dim);
+    background:var(--panel);border:1px solid var(--line);border-radius:7px;
+    padding:11px 15px;margin-bottom:14px;line-height:1.6}
+  .ctxbar b{color:var(--ink)}
+  .ctxbar.sell{border-color:rgba(111,155,209,.3)}
+
+  .legend{display:flex;gap:18px;margin:13px 0 16px;font-family:'IBM Plex Mono',monospace;
+    font-size:11px;color:var(--ink-dim);flex-wrap:wrap}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+  footer{margin-top:22px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+    line-height:1.7;color:var(--ink-faint)}
+  footer b{color:var(--ink-dim);font-weight:500}
+  .loader{padding:60px 20px;text-align:center;color:var(--ink-faint);
+    font-family:'IBM Plex Mono',monospace;font-size:13px}
+  .loader .spin{font-size:18px;margin-bottom:10px;display:block}
+  .errbox{padding:50px 20px;text-align:center;color:var(--down);
+    font-family:'IBM Plex Mono',monospace;font-size:13px}
+  .errbox .big{font-size:18px;margin-bottom:10px}
+  .errbox .hint{color:var(--ink-faint);font-size:11px;margin-top:10px;line-height:1.6}
+
+  @media(max-width:880px){
+    .stats{grid-template-columns:repeat(2,1fr)}
+    h1{font-size:32px}
+    .nm{max-width:120px}
+    .hide-m{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Periodic Transaction Report &middot; OGE Form 278-T</div>
+  <h1>Transactions Over $1M <em>&mdash;</em> Live Price Performance</h1>
+  <div class="sub">
+    <span>Filer <b>Donald J. Trump</b></span>
+    <span>Filed <b>08 May 2026</b></span>
+    <span>Txns <b>Jan&ndash;Mar 2026</b></span>
+    <span class="live"><span class="dot" id="dot"></span><span id="status">Loading&hellip;</span></span>
+    <button class="refresh" id="refreshBtn">&#8635; Refresh</button>
+  </div>
+</header>
+
+<div class="tabs" id="tabs" style="display:none">
+  <button class="tab on" data-tab="purchases">Purchases <span class="pill" id="pillBuy">&mdash;</span></button>
+  <button class="tab" data-tab="sales">Sales <span class="pill" id="pillSell">&mdash;</span></button>
+</div>
+
+<div id="content">
+  <div class="loader"><span class="spin">&#8635;</span>Fetching live prices for all 54 transactions from Yahoo Finance&hellip;</div>
+</div>
+
+<footer id="footer"></footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────
+//  DATA MECHANISM — same as the Index Seasonality Dashboard.
+//  On every page load this fetches /api/data, a Vercel serverless function
+//  that pulls live current prices from Yahoo Finance, pairs them with each
+//  transaction's fixed acquisition-date close, and returns the computed
+//  payload. The result is edge-cached at Vercel for 1 hour, so the data
+//  stays current with zero manual maintenance — nothing to refresh, no
+//  cron job, no data file to update.
+//  NOTE: because the data comes from a serverless function, this page only
+//  works once deployed to Vercel (or running `vercel dev` locally). Opening
+//  index.html as a bare file will show the connection-error state.
+// ─────────────────────────────────────────────────────────────────────────
+const API_PATH = '/api/data';
+
+const fmtPx = v => (v==null) ? '\u2014'
+  : '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtDt = s => {const d=new Date(s+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'});};
+const fmtPct = v => (v==null) ? '\u2014' : (v>0?'+':'')+v.toFixed(2)+'%';
+const cls = v => (v==null) ? 'flat' : v>0?'up':v<0?'down':'flat';
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+let REC = [], META = {}, activeTab='purchases', sortKey='pct', sortDir=-1, filter='all', q='';
+
+function tabRecs(){ return REC.filter(r=>
+  activeTab==='purchases' ? r.tp==='Purchase' : r.tp==='Sale'); }
+
+function renderStats(){
+  const recs=tabRecs().filter(r=>r.t!=='SNVXX' && r.pct!=null);
+  if(!recs.length){ document.getElementById('stats').innerHTML=''; return; }
+  const avg=recs.reduce((a,b)=>a+b.pct,0)/recs.length;
+  const gain=recs.filter(r=>r.pct>0), lose=recs.filter(r=>r.pct<0);
+  const best=recs.reduce((a,b)=>b.pct>a.pct?b:a);
+  const worst=recs.reduce((a,b)=>b.pct<a.pct?b:a);
+  const isSell=activeTab==='sales';
+  const acl=isSell?'accent sell':'accent';
+  let stats;
+  if(isSell){
+    stats=[
+      {lab:'Avg. Move Post-Exit',val:fmtPct(avg),cl:cls(avg),note:recs.length+' sales',accent:acl},
+      {lab:'Rose After Sale',val:gain.length+' / '+recs.length,cl:'up',note:'gains forgone'},
+      {lab:'Fell After Sale',val:lose.length+' / '+recs.length,cl:'down',note:'losses avoided'},
+      {lab:'Biggest Gain Forgone',val:best.t+' '+fmtPct(best.pct),cl:'up',note:best.n},
+      {lab:'Biggest Loss Avoided',val:worst.t+' '+fmtPct(worst.pct),cl:'down',note:worst.n},
+    ];
+  } else {
+    stats=[
+      {lab:'Avg. Return (eq-wt)',val:fmtPct(avg),cl:cls(avg),note:recs.length+' positions \u00b7 ex-MMF',accent:acl},
+      {lab:'Gainers',val:gain.length+' / '+recs.length,cl:'up',note:'positions in the green'},
+      {lab:'Losers',val:lose.length+' / '+recs.length,cl:'down',note:'positions in the red'},
+      {lab:'Top Performer',val:best.t+' '+fmtPct(best.pct),cl:'up',note:best.n},
+      {lab:'Worst Performer',val:worst.t+' '+fmtPct(worst.pct),cl:'down',note:worst.n},
+    ];
+  }
+  document.getElementById('stats').innerHTML=stats.map(s=>
+    '<div class="card'+(s.accent?' '+s.accent:'')+'">'+
+      '<div class="lab">'+s.lab+'</div>'+
+      '<div class="val '+s.cl+'">'+s.val+'</div>'+
+      '<div class="note">'+esc(s.note)+'</div>'+
+    '</div>').join('');
+}
+
+function renderCtx(){
+  const c=document.getElementById('ctxbar');
+  if(activeTab==='sales'){
+    c.className='ctxbar sell';
+    c.innerHTML='<b>Sales tab.</b> These are positions sold. "Move Post-Exit" shows the price change '+
+      '<b>after the exit date</b> &mdash; green = the security kept rising (upside given up); '+
+      'red = it fell (a loss sidestepped). Includes the four largest transactions in the entire '+
+      'filing, all in the <b>$5M&ndash;$25M</b> bracket.';
+  } else {
+    c.className='ctxbar';
+    c.innerHTML='<b>Purchases tab.</b> All 36 disclosed purchases over $1M (entries 1&ndash;36), every one '+
+      'in the <b>$1M&ndash;$5M</b> bracket. "Change %" is the gain/loss since the buy date.';
+  }
+}
+
+function maxAbs(rows){
+  return Math.max.apply(null,rows.map(r=>r.pct==null?0:Math.abs(r.pct)).concat([1]));
+}
+function renderTable(){
+  let rows=tabRecs().filter(r=>{
+    if(filter==='up'&&!(r.pct>0)) return false;
+    if(filter==='down'&&!(r.pct<0)) return false;
+    if(filter==='s5'&&r.sz!=='$5M-$25M') return false;
+    if(q&&!(r.t.toLowerCase().includes(q)||r.n.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  rows.sort((a,b)=>{
+    let x=a[sortKey],y=b[sortKey];
+    if(x==null) x=-Infinity; if(y==null) y=-Infinity;
+    if(typeof x==='string'&&typeof y==='string') return x.localeCompare(y)*sortDir;
+    return (x-y)*sortDir;
+  });
+  const mx=maxAbs(rows);
+  document.getElementById('tb').innerHTML=rows.map(r=>{
+    const c=cls(r.pct);
+    const w=(r.pct==null?0:Math.abs(r.pct)/mx*50).toFixed(1);
+    const bar=(r.pct>0)?'<div class="pbar pos" style="width:'+w+'%"></div>'
+      :(r.pct<0)?'<div class="pbar neg" style="width:'+w+'%"></div>':'';
+    const mmf=r.t==='SNVXX'?' <span class="tag mmf">MMF</span>'
+      :(r.cp==null?' <span class="tag na">no data</span>':'');
+    const szc=r.sz==='$5M-$25M'?'s5':'s1';
+    return '<tr>'+
+      '<td class="lft idx">'+r.e+'</td>'+
+      '<td class="lft"><span class="nm" title="'+esc(r.n)+'">'+esc(r.n)+'</span></td>'+
+      '<td class="lft"><span class="tk">'+esc(r.t)+'</span>'+mmf+'</td>'+
+      '<td class="lft"><span class="size '+szc+'">'+r.sz+'</span></td>'+
+      '<td class="dt hide-m">'+fmtDt(r.tcd)+'</td>'+
+      '<td class="px">'+fmtPx(r.tc)+'</td>'+
+      '<td class="px cur">'+fmtPx(r.cp)+'</td>'+
+      '<td class="pcell">'+bar+'<span class="pval '+c+'">'+fmtPct(r.pct)+'</span></td>'+
+    '</tr>';
+  }).join('');
+  document.getElementById('count').textContent=rows.length+' shown';
+  const ph=document.getElementById('pctHead');
+  ph.firstChild.textContent = activeTab==='sales' ? 'Move Post-Exit ' : 'Change % ';
+  document.querySelectorAll('thead th').forEach(th=>{
+    const a=th.querySelector('.ar'); if(a) a.remove();
+    if(th.dataset.s===sortKey)
+      th.insertAdjacentHTML('beforeend','<span class="ar">'+(sortDir>0?'\u25B2':'\u25BC')+'</span>');
+  });
+}
+
+function renderAll(){ renderStats(); renderCtx(); renderTable(); }
+
+function buildShell(){
+  const content=document.getElementById('content');
+  content.innerHTML =
+    '<div class="stats" id="stats"></div>'+
+    '<div class="ctxbar" id="ctxbar"></div>'+
+    '<div class="controls">'+
+      '<div class="seg" id="filter">'+
+        '<button data-f="all" class="on">All</button>'+
+        '<button data-f="up">Gainers</button>'+
+        '<button data-f="down">Losers</button>'+
+        '<button data-f="s5">$5M&ndash;$25M only</button>'+
+      '</div>'+
+      '<input class="search" id="search" placeholder="filter ticker or name\u2026">'+
+      '<button class="btn-export" id="btnExport">&darr; CSV</button>'+
+      '<span class="count" id="count"></span>'+
+    '</div>'+
+    '<div class="legend">'+
+      '<span><span class="sw" style="background:var(--up)"></span>Up since transaction date</span>'+
+      '<span><span class="sw" style="background:var(--down)"></span>Down since transaction date</span>'+
+      '<span><span class="sw" style="background:var(--buy)"></span>$1M&ndash;$5M bracket</span>'+
+      '<span><span class="sw" style="background:var(--down)"></span>$5M&ndash;$25M bracket</span>'+
+    '</div>'+
+    '<div class="wrap"><table><thead><tr>'+
+      '<th class="lft" data-s="e">#</th>'+
+      '<th class="lft" data-s="n">Security</th>'+
+      '<th class="lft" data-s="t">Ticker</th>'+
+      '<th class="lft" data-s="sz">Size</th>'+
+      '<th data-s="td" class="hide-m">Txn Date</th>'+
+      '<th data-s="tc">Close @ Txn</th>'+
+      '<th data-s="cp">Current Price</th>'+
+      '<th data-s="pct" id="pctHead">Change % </th>'+
+    '</tr></thead><tbody id="tb"></tbody></table></div>';
+
+  document.querySelectorAll('thead th').forEach(th=>{
+    th.addEventListener('click',function(){
+      const k=th.dataset.s;
+      if(k===sortKey) sortDir*=-1;
+      else {sortKey=k; sortDir=(k==='n'||k==='t'||k==='sz')?1:-1;}
+      renderTable();
+    });
+  });
+  document.getElementById('filter').addEventListener('click',function(e){
+    if(e.target.tagName!=='BUTTON') return;
+    filter=e.target.dataset.f;
+    document.querySelectorAll('#filter button').forEach(b=>b.classList.toggle('on',b===e.target));
+    renderTable();
+  });
+  document.getElementById('search').addEventListener('input',function(e){
+    q=e.target.value.toLowerCase().trim(); renderTable();
+  });
+  document.getElementById('btnExport').addEventListener('click',exportCSV);
+}
+
+function exportCSV(){
+  const rows=[['Entry','Security','Ticker','Type','Size','TxnDate','CloseAtTxn','CurrentPrice','ChangePct']];
+  tabRecs().forEach(r=>rows.push([r.e,r.n,r.t,r.tp,r.sz,r.tcd,r.tc,
+    r.cp==null?'':r.cp, r.pct==null?'':r.pct]));
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='ptr_over1m_'+activeTab+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function buildFooter(){
+  document.getElementById('footer').innerHTML=
+    '<p><b>Data mechanism.</b> On every visit, the bundled Vercel serverless function '+
+    '<b>/api/data</b> fetches live current prices from Yahoo Finance, pairs them with each '+
+    'transaction\u2019s fixed acquisition-date close, and returns the computed performance. The '+
+    'result is edge-cached for 1 hour \u2014 there is nothing to refresh, no cron job, and no data '+
+    'file to maintain. (Same auto-refresh design as the Index Seasonality Dashboard. Because the '+
+    'data comes from a serverless function, this page must be deployed to Vercel to work.)</p>'+
+    '<p><b>Reading the Change % \u2014 purchases vs. sales differ.</b> For a <b>purchase</b>, '+
+    'Change % is the gain/loss on the position since it was bought. For a <b>sale</b>, it is what '+
+    'the security did <i>after the exit</i>: positive = the price rose after selling (gains '+
+    'forgone); negative = the price fell after selling (a loss avoided). The two tabs are kept '+
+    'separate because mixing them would be misleading.</p>'+
+    '<p><b>Scope.</b> All 54 transactions disclosed above $1,000,000 in the filing \u2014 '+
+    '36 purchases (entries 1\u201336, all $1M\u2013$5M) and 18 sales (entries 3624\u20133641; '+
+    '14 at $1M\u2013$5M, 4 at $5M\u2013$25M). The full 278-T contains ~2,315 transactions across '+
+    'seven brackets; this is the $1M+ subset.</p>'+
+    '<p><b>$5M\u2013$25M bracket (the filing\u2019s largest):</b> four transactions, all sales '+
+    'dated Jan\u2013Feb 2026 \u2014 Vanguard Dividend Appreciation ETF (VIG), Meta Platforms '+
+    '(META), Amazon.com (AMZN), and Microsoft (MSFT).</p>'+
+    '<p><b>Caveats.</b> Tickers added for reference (not in the filing); SNVXX is a $1.00-NAV '+
+    'cash fund shown at 0%. Source is a rotated OCR scan \u2014 back-page entries '+
+    '(3624\u20133641) cross-checked against page images, but verify against the official '+
+    'OGE-posted document before formal use. Performance is not dividend-adjusted and does not '+
+    'account for any subsequent transactions.</p>';
+}
+
+function setStatus(state,msg){
+  const dot=document.getElementById('dot'), st=document.getElementById('status');
+  dot.className = 'dot' + (state==='ok'?' ok':state==='err'?' err':'');
+  st.textContent = msg;
+}
+
+function showError(msg){
+  document.getElementById('tabs').style.display='none';
+  document.getElementById('content').innerHTML=
+    '<div class="errbox"><div class="big">\u26A0 Could not load live data</div>'+
+    '<div>'+esc(msg)+'</div>'+
+    '<div class="hint">This dashboard reads from the <b>/api/data</b> serverless function, '+
+    'which only runs when deployed to Vercel. If you are opening index.html as a local file, '+
+    'that is expected \u2014 deploy to Vercel (or run <b>vercel dev</b>) and it will work. '+
+    'If it is already deployed, check that the <b>api/</b> folder is present in your repo.</div></div>';
+  document.getElementById('footer').innerHTML='';
+}
+
+// ─── Main — fetch /api/data, then render (Seasonality Dashboard pattern) ──
+async function load(){
+  const btn=document.getElementById('refreshBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin">&#8635;</span> Loading\u2026';
+  setStatus('','Fetching live prices\u2026');
+  try{
+    const res=await fetch(API_PATH,{cache:'no-store'});
+    if(!res.ok) throw new Error('API returned HTTP '+res.status);
+    const json=await res.json();
+    if(!json || !json.ok || !Array.isArray(json.rows))
+      throw new Error(json && json.error ? json.error : 'Malformed API response');
+
+    META=json;
+    REC=json.rows.map(d=>({
+      e:d.e, n:d.n, t:d.t, td:d.td, tcd:d.tcd||d.td, tc:d.tc, cp:d.cp,
+      sz:d.sz, tp:d.tp, pct:d.pct
+    }));
+
+    document.getElementById('pillBuy').textContent  = REC.filter(r=>r.tp==='Purchase').length;
+    document.getElementById('pillSell').textContent = REC.filter(r=>r.tp==='Sale').length;
+    document.getElementById('tabs').style.display='flex';
+
+    // (re)build shell only once
+    if(!document.getElementById('tb')){
+      buildShell(); buildFooter();
+      document.getElementById('tabs').addEventListener('click',function(e){
+        const t=e.target.closest('.tab'); if(!t) return;
+        activeTab=t.dataset.tab;
+        document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+        filter='all';
+        document.querySelectorAll('#filter button').forEach(b=>b.classList.toggle('on',b.dataset.f==='all'));
+        sortKey='pct'; sortDir=-1;
+        renderAll();
+      });
+    }
+    renderAll();
+
+    const tm=new Date(json.updatedAt||Date.now()).toLocaleTimeString('en-US',
+      {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const liveTxt = (typeof json.live==='number')
+      ? json.live+' priced live' : 'live';
+    setStatus('ok','Live \u00b7 '+liveTxt+' \u00b7 '+tm+(json.missing&&json.missing.length
+      ? ' \u00b7 '+json.missing.length+' unavailable' : ''));
+  }catch(err){
+    setStatus('err','Connection failed');
+    showError(err.message);
+  }finally{
+    btn.disabled=false; btn.innerHTML='&#8635; Refresh';
+  }
+}
+
+document.getElementById('refreshBtn').addEventListener('click',load);
+load();
+</script>
+</body>
+</html>
