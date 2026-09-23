@@ -19,7 +19,7 @@
     font-family:'IBM Plex Sans',sans-serif;-webkit-font-smoothing:antialiased}
   body{padding:32px 28px 60px;max-width:1340px;margin:0 auto}
 
-  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:22px}
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:18px}
   .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;
     text-transform:uppercase;color:var(--buy);margin-bottom:10px}
   h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:44px;
@@ -41,6 +41,39 @@
   .refresh:disabled{opacity:.5;cursor:wait}
   .spin{display:inline-block;animation:rot .8s linear infinite}
   @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* filing selector */
+  .filingsel{display:flex;gap:8px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+  .filingsel .fslab{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-faint);margin-right:2px}
+  .fbtn{background:var(--panel);border:1px solid var(--line);border-radius:7px;
+    padding:9px 15px;cursor:pointer;transition:.15s;text-align:left;min-width:150px}
+  .fbtn:hover{border-color:var(--ink-faint)}
+  .fbtn.on{border-color:var(--buy);background:var(--panel-2)}
+  .fbtn .fb-t{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink);font-weight:600;letter-spacing:.02em}
+  .fbtn.on .fb-t{color:var(--buy)}
+  .fbtn .fb-s{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-faint);margin-top:2px}
+
+  /* composition panel (Sept filing) */
+  .comp{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:16px 18px;margin-bottom:20px}
+  .comp .chead{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--buy);margin-bottom:12px}
+  .comp .cgrid{display:grid;grid-template-columns:repeat(4,auto) 1fr;gap:26px;align-items:start}
+  .comp .cstat .cv{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--ink)}
+  .comp .cstat .cl{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-faint);margin-top:4px;max-width:120px;line-height:1.4}
+  .comp .cstat .cv.sell{color:var(--sell)} .comp .cstat .cv.muni{color:var(--buy)}
+  .hist{min-width:220px}
+  .hist .hrow{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .hist .hlab{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-dim);
+    width:74px;text-align:right;white-space:nowrap}
+  .hist .hbar{height:11px;background:var(--sell);border-radius:2px;min-width:2px;opacity:.85}
+  .hist .hbar.big{background:var(--buy)}
+  .hist .hn{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-faint)}
+  .comp .cnote{margin-top:13px;padding-top:12px;border-top:1px solid var(--line);
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-dim);line-height:1.6}
+  .comp .cnote b{color:var(--ink)}
 
   .tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--line)}
   .tab{background:none;border:0;border-bottom:2px solid transparent;color:var(--ink-faint);
@@ -149,6 +182,8 @@
     h1{font-size:32px}
     .nm{max-width:120px}
     .hide-m{display:none}
+    .comp .cgrid{grid-template-columns:repeat(2,1fr);gap:16px}
+    .hist{grid-column:1 / -1}
   }
 </style>
 </head>
@@ -159,12 +194,16 @@
   <h1>Transactions Over $1M <em>&mdash;</em> Live Price Performance</h1>
   <div class="sub">
     <span>Filer <b>Donald J. Trump</b></span>
-    <span>Filed <b>08 May 2026</b></span>
-    <span>Txns <b>Jan&ndash;Mar 2026</b></span>
+    <span>Filed <b id="metaFiled">&mdash;</b></span>
+    <span>Txns <b id="metaPeriod">&mdash;</b></span>
     <span class="live"><span class="dot" id="dot"></span><span id="status">Loading&hellip;</span></span>
     <button class="refresh" id="refreshBtn">&#8635; Refresh</button>
   </div>
 </header>
+
+<div class="filingsel" id="filingsel" style="display:none"></div>
+
+<div id="compPanel"></div>
 
 <div class="tabs" id="tabs" style="display:none">
   <button class="tab on" data-tab="purchases">Purchases <span class="pill" id="pillBuy">&mdash;</span></button>
@@ -172,7 +211,7 @@
 </div>
 
 <div id="content">
-  <div class="loader"><span class="spin">&#8635;</span>Fetching live prices for all 54 transactions from Yahoo Finance&hellip;</div>
+  <div class="loader"><span class="spin">&#8635;</span>Fetching live prices from Yahoo Finance&hellip;</div>
 </div>
 
 <footer id="footer"></footer>
@@ -183,12 +222,10 @@
 //  On every page load this fetches /api/data, a Vercel serverless function
 //  that pulls live current prices from Yahoo Finance, pairs them with each
 //  transaction's fixed acquisition-date close, and returns the computed
-//  payload. The result is edge-cached at Vercel for 1 hour, so the data
-//  stays current with zero manual maintenance — nothing to refresh, no
-//  cron job, no data file to update.
+//  payload. The result is edge-cached at Vercel for 1 hour.
+//  The dashboard now tracks TWO filings — switch with the filing selector.
 //  NOTE: because the data comes from a serverless function, this page only
-//  works once deployed to Vercel (or running `vercel dev` locally). Opening
-//  index.html as a bare file will show the connection-error state.
+//  works once deployed to Vercel (or running `vercel dev` locally).
 // ─────────────────────────────────────────────────────────────────────────
 const API_PATH = '/api/data';
 
@@ -197,18 +234,23 @@ const fmtPx = v => (v==null) ? '\u2014'
 const fmtDt = s => {const d=new Date(s+'T00:00:00');
   return d.toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'});};
 const fmtPct = v => (v==null) ? '\u2014' : (v>0?'+':'')+v.toFixed(2)+'%';
+const fmtInt = v => Number(v).toLocaleString('en-US');
 const cls = v => (v==null) ? 'flat' : v>0?'up':v<0?'down':'flat';
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
   .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmtFiled = s => {const d=new Date(s+'T00:00:00');
+  return d.toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'numeric'});};
 
-let REC = [], META = {}, activeTab='purchases', sortKey='pct', sortDir=-1, filter='all', q='';
+let FILINGS=[], fi=0, REC=[], META={}, activeTab='purchases',
+    sortKey='pct', sortDir=-1, filter='all', q='';
 
+function activeFiling(){ return FILINGS[fi] || {rows:[]}; }
 function tabRecs(){ return REC.filter(r=>
   activeTab==='purchases' ? r.tp==='Purchase' : r.tp==='Sale'); }
 
 function renderStats(){
   const recs=tabRecs().filter(r=>r.t!=='SNVXX' && r.pct!=null);
-  if(!recs.length){ document.getElementById('stats').innerHTML=''; return; }
+  if(!recs.length){ const s=document.getElementById('stats'); if(s) s.innerHTML=''; return; }
   const avg=recs.reduce((a,b)=>a+b.pct,0)/recs.length;
   const gain=recs.filter(r=>r.pct>0), lose=recs.filter(r=>r.pct<0);
   const best=recs.reduce((a,b)=>b.pct>a.pct?b:a);
@@ -242,18 +284,46 @@ function renderStats(){
 }
 
 function renderCtx(){
-  const c=document.getElementById('ctxbar');
+  const c=document.getElementById('ctxbar'); if(!c) return;
+  const f=activeFiling();
   if(activeTab==='sales'){
     c.className='ctxbar sell';
-    c.innerHTML='<b>Sales tab.</b> These are positions sold. "Move Post-Exit" shows the price change '+
-      '<b>after the exit date</b> &mdash; green = the security kept rising (upside given up); '+
-      'red = it fell (a loss sidestepped). Includes the four largest transactions in the entire '+
-      'filing, all in the <b>$5M&ndash;$25M</b> bracket.';
+    c.innerHTML='<b>Sales tab.</b> Positions sold in the '+esc(f.period)+' window. '+
+      '"Move Post-Exit" shows the price change <b>after the exit date</b> &mdash; green = the '+
+      'security kept rising (upside given up); red = it fell (a loss sidestepped).';
   } else {
     c.className='ctxbar';
-    c.innerHTML='<b>Purchases tab.</b> All 36 disclosed purchases over $1M (entries 1&ndash;36), every one '+
-      'in the <b>$1M&ndash;$5M</b> bracket. "Change %" is the gain/loss since the buy date.';
+    c.innerHTML='<b>Purchases tab.</b> Positions bought in the '+esc(f.period)+' window. '+
+      '"Change %" is the gain/loss since the buy date.';
   }
+}
+
+function renderComp(){
+  const el=document.getElementById('compPanel');
+  const f=activeFiling();
+  if(!f.summary){ el.innerHTML=''; return; }
+  const s=f.summary;
+  const mx=Math.max.apply(null,s.brackets.map(b=>b[1]));
+  const hist=s.brackets.map(b=>{
+    const w=(b[1]/mx*150).toFixed(0);
+    const big=(b[0]==='$1M-$5M'||b[0]==='$5M-$25M');
+    return '<div class="hrow"><span class="hlab">'+b[0]+'</span>'+
+      '<span class="hbar'+(big?' big':'')+'" style="width:'+w+'px"></span>'+
+      '<span class="hn">'+fmtInt(b[1])+'</span></div>';
+  }).join('');
+  el.innerHTML=
+    '<div class="comp">'+
+      '<div class="chead">Filing composition &middot; '+esc(f.period)+' &middot; full 278-T</div>'+
+      '<div class="cgrid">'+
+        '<div class="cstat"><div class="cv">'+fmtInt(s.total)+'</div><div class="cl">Total transactions</div></div>'+
+        '<div class="cstat"><div class="cv sell">'+fmtInt(s.sales)+' / '+fmtInt(s.purchases)+'</div><div class="cl">Sells / Buys (net-selling equities)</div></div>'+
+        '<div class="cstat"><div class="cv muni">'+fmtInt(s.muniPurchases)+'</div><div class="cl">New municipal-bond buys</div></div>'+
+        '<div class="cstat"><div class="cv">'+fmtInt(s.over1m)+'</div><div class="cl">Over $1M ('+s.over1mTradeable+' tradeable + '+s.over1mMuni+' muni)</div></div>'+
+        '<div class="hist">'+hist+'</div>'+
+      '</div>'+
+      '<div class="cnote">'+esc(s.headline)+' <b>The table below shows the '+s.over1mTradeable+
+        ' tradeable transactions over $1M</b> (the 4 over-$1M municipal bonds are held to maturity and have no live-market price).</div>'+
+    '</div>';
 }
 
 function maxAbs(rows){
@@ -303,7 +373,7 @@ function renderTable(){
   });
 }
 
-function renderAll(){ renderStats(); renderCtx(); renderTable(); }
+function renderAll(){ renderComp(); renderStats(); renderCtx(); renderTable(); }
 
 function buildShell(){
   const content=document.getElementById('content');
@@ -359,15 +429,49 @@ function buildShell(){
 }
 
 function exportCSV(){
-  const rows=[['Entry','Security','Ticker','Type','Size','TxnDate','CloseAtTxn','CurrentPrice','ChangePct']];
-  tabRecs().forEach(r=>rows.push([r.e,r.n,r.t,r.tp,r.sz,r.tcd,r.tc,
+  const f=activeFiling();
+  const rows=[['Filing','Entry','Security','Ticker','Type','Size','TxnDate','CloseAtTxn','CurrentPrice','ChangePct']];
+  tabRecs().forEach(r=>rows.push([f.label,r.e,r.n,r.t,r.tp,r.sz,r.tcd,r.tc,
     r.cp==null?'':r.cp, r.pct==null?'':r.pct]));
   const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url; a.download='ptr_over1m_'+activeTab+'.csv'; a.click();
+  a.href=url; a.download='ptr_over1m_'+f.id+'_'+activeTab+'.csv'; a.click();
   URL.revokeObjectURL(url);
+}
+
+function buildFilingSelector(){
+  const el=document.getElementById('filingsel');
+  el.innerHTML='<span class="fslab">Filing</span>'+FILINGS.map((f,i)=>
+    '<button class="fbtn'+(i===fi?' on':'')+'" data-i="'+i+'">'+
+      '<div class="fb-t">'+esc(f.label)+'</div>'+
+      '<div class="fb-s">'+esc(f.period)+' &middot; '+f.count+' shown</div>'+
+    '</button>').join('');
+  el.style.display='flex';
+  el.addEventListener('click',function(e){
+    const b=e.target.closest('.fbtn'); if(!b) return;
+    selectFiling(+b.dataset.i);
+  });
+}
+
+function selectFiling(idx){
+  fi=idx;
+  const f=activeFiling();
+  REC=f.rows;
+  document.querySelectorAll('#filingsel .fbtn').forEach(b=>
+    b.classList.toggle('on', +b.dataset.i===fi));
+  document.getElementById('metaFiled').textContent=fmtFiled(f.filed);
+  document.getElementById('metaPeriod').textContent=f.period;
+  document.getElementById('pillBuy').textContent  = REC.filter(r=>r.tp==='Purchase').length;
+  document.getElementById('pillSell').textContent = REC.filter(r=>r.tp==='Sale').length;
+  // reset view
+  activeTab='purchases'; sortKey='pct'; sortDir=-1; filter='all'; q='';
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab==='purchases'));
+  if(document.getElementById('filter'))
+    document.querySelectorAll('#filter button').forEach(b=>b.classList.toggle('on',b.dataset.f==='all'));
+  if(document.getElementById('search')) document.getElementById('search').value='';
+  renderAll();
 }
 
 function buildFooter(){
@@ -375,26 +479,22 @@ function buildFooter(){
     '<p><b>Data mechanism.</b> On every visit, the bundled Vercel serverless function '+
     '<b>/api/data</b> fetches live current prices from Yahoo Finance, pairs them with each '+
     'transaction\u2019s fixed acquisition-date close, and returns the computed performance. The '+
-    'result is edge-cached for 1 hour \u2014 there is nothing to refresh, no cron job, and no data '+
-    'file to maintain. (Same auto-refresh design as the Index Seasonality Dashboard. Because the '+
-    'data comes from a serverless function, this page must be deployed to Vercel to work.)</p>'+
+    'result is edge-cached for 1 hour \u2014 nothing to refresh, no cron job, no data file to '+
+    'maintain. (Same auto-refresh design as the Index Seasonality Dashboard; the page must be '+
+    'deployed to Vercel to work.)</p>'+
+    '<p><b>Two filings.</b> Use the selector above to switch. <b>Sept 8, 2026</b> covers July 2026 '+
+    'activity: 799 transactions in the month, net-selling equities (410 sells vs 345 buys) with a '+
+    'new municipal-bond allocation (44 buys, held to maturity). Only 17 lines are over $1M \u2014 '+
+    '13 tradeable equities/ETFs (shown) plus 4 municipal bonds (no live ticker). <b>May 8, 2026</b> '+
+    'covers Jan\u2013Mar 2026: all 54 transactions over $1M (36 buys, 18 sells incl. four $5M\u2013$25M sales).</p>'+
     '<p><b>Reading the Change % \u2014 purchases vs. sales differ.</b> For a <b>purchase</b>, '+
     'Change % is the gain/loss on the position since it was bought. For a <b>sale</b>, it is what '+
     'the security did <i>after the exit</i>: positive = the price rose after selling (gains '+
-    'forgone); negative = the price fell after selling (a loss avoided). The two tabs are kept '+
-    'separate because mixing them would be misleading.</p>'+
-    '<p><b>Scope.</b> All 54 transactions disclosed above $1,000,000 in the filing \u2014 '+
-    '36 purchases (entries 1\u201336, all $1M\u2013$5M) and 18 sales (entries 3624\u20133641; '+
-    '14 at $1M\u2013$5M, 4 at $5M\u2013$25M). The full 278-T contains ~2,315 transactions across '+
-    'seven brackets; this is the $1M+ subset.</p>'+
-    '<p><b>$5M\u2013$25M bracket (the filing\u2019s largest):</b> four transactions, all sales '+
-    'dated Jan\u2013Feb 2026 \u2014 Vanguard Dividend Appreciation ETF (VIG), Meta Platforms '+
-    '(META), Amazon.com (AMZN), and Microsoft (MSFT).</p>'+
-    '<p><b>Caveats.</b> Tickers added for reference (not in the filing); SNVXX is a $1.00-NAV '+
-    'cash fund shown at 0%. Source is a rotated OCR scan \u2014 back-page entries '+
-    '(3624\u20133641) cross-checked against page images, but verify against the official '+
-    'OGE-posted document before formal use. Performance is not dividend-adjusted and does not '+
-    'account for any subsequent transactions.</p>';
+    'forgone); negative = the price fell after selling (a loss avoided).</p>'+
+    '<p><b>Caveats.</b> Tickers added for reference (not in the filing); SNVXX is a $1.00-NAV cash '+
+    'fund shown at 0%. OCR-sourced filings \u2014 verify against the official OGE-posted documents '+
+    'before formal use. Performance is not dividend-adjusted and does not account for any '+
+    'subsequent transactions.</p>';
 }
 
 function setStatus(state,msg){
@@ -405,6 +505,8 @@ function setStatus(state,msg){
 
 function showError(msg){
   document.getElementById('tabs').style.display='none';
+  document.getElementById('filingsel').style.display='none';
+  document.getElementById('compPanel').innerHTML='';
   document.getElementById('content').innerHTML=
     '<div class="errbox"><div class="big">\u26A0 Could not load live data</div>'+
     '<div>'+esc(msg)+'</div>'+
@@ -424,22 +526,26 @@ async function load(){
     const res=await fetch(API_PATH,{cache:'no-store'});
     if(!res.ok) throw new Error('API returned HTTP '+res.status);
     const json=await res.json();
-    if(!json || !json.ok || !Array.isArray(json.rows))
+    if(!json || !json.ok || !Array.isArray(json.filings))
       throw new Error(json && json.error ? json.error : 'Malformed API response');
 
     META=json;
-    REC=json.rows.map(d=>({
-      e:d.e, n:d.n, t:d.t, td:d.td, tcd:d.tcd||d.td, tc:d.tc, cp:d.cp,
-      sz:d.sz, tp:d.tp, pct:d.pct
+    FILINGS=json.filings.map(f=>({
+      id:f.id, label:f.label, filed:f.filed, period:f.period, scope:f.scope,
+      count:f.count, summary:f.summary||null,
+      rows:(f.rows||[]).map(d=>({
+        e:d.e, n:d.n, t:d.t, td:d.td, tcd:d.tcd||d.td, tc:d.tc, cp:d.cp,
+        sz:d.sz, tp:d.tp, pct:d.pct
+      }))
     }));
+    if(!FILINGS.length) throw new Error('No filings in API response');
+    if(fi>=FILINGS.length) fi=0;
 
-    document.getElementById('pillBuy').textContent  = REC.filter(r=>r.tp==='Purchase').length;
-    document.getElementById('pillSell').textContent = REC.filter(r=>r.tp==='Sale').length;
     document.getElementById('tabs').style.display='flex';
 
-    // (re)build shell only once
+    // (re)build shell + static bits only once
     if(!document.getElementById('tb')){
-      buildShell(); buildFooter();
+      buildShell(); buildFooter(); buildFilingSelector();
       document.getElementById('tabs').addEventListener('click',function(e){
         const t=e.target.closest('.tab'); if(!t) return;
         activeTab=t.dataset.tab;
@@ -449,15 +555,15 @@ async function load(){
         sortKey='pct'; sortDir=-1;
         renderAll();
       });
+    } else {
+      buildFilingSelector();
     }
-    renderAll();
+    selectFiling(fi);
 
     const tm=new Date(json.updatedAt||Date.now()).toLocaleTimeString('en-US',
       {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    const liveTxt = (typeof json.live==='number')
-      ? json.live+' priced live' : 'live';
-    setStatus('ok','Live \u00b7 '+liveTxt+' \u00b7 '+tm+(json.missing&&json.missing.length
-      ? ' \u00b7 '+json.missing.length+' unavailable' : ''));
+    const totLive=FILINGS.reduce((a,f)=>a+f.rows.filter(r=>r.cp!=null&&r.t!=='SNVXX').length,0);
+    setStatus('ok','Live \u00b7 '+totLive+' priced \u00b7 '+tm);
   }catch(err){
     setStatus('err','Connection failed');
     showError(err.message);
